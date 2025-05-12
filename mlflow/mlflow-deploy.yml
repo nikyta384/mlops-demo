@@ -1,0 +1,33 @@
+- name: MLflow Install
+  hosts: mlflow-host
+  gather_facts: yes
+  vars:
+    source_dir: "."
+    target_directory: "/mlflow"
+    env_file: "../secret/.mlflow_env"
+  tasks:
+    - name: Ensure working directory exists
+      file:
+        path: "{{ target_directory }}"
+        state: directory
+        mode: '0750'
+
+    - name: Copy directory to {{ target_directory }}
+      ansible.builtin.copy:
+        src: "{{ source_dir }}"
+        dest: "{{ target_directory }}"
+        mode: '0755'
+
+    - name: Copy .env
+      copy:
+        src: "{{ env_file }}"
+        dest: "{{ target_directory }}/.env"
+        mode: '0644'
+
+    - name: Run mlflow
+      ansible.builtin.shell:
+        cmd: "docker compose up -d"
+        chdir: "{{ target_directory }}"
+
+      register: compose_output
+      changed_when: "'Starting' in compose_output.stdout or 'Creating' in compose_output.stdout"

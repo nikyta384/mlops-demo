@@ -1,0 +1,97 @@
+name: MLOps CI/CD Pipeline - Build & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'dataset/**'
+      - 'requirements.txt'
+  workflow_dispatch:
+
+env:
+  MLFLOW_TRACKING_URI: http://173.249.36.45:5001
+  MLFLOW_S3_ENDPOINT_URL: http://173.249.36.45:9001
+  AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_USER }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_PASSWORD }}
+  BENTOML_HOME: /tmp/bentoml
+
+jobs:
+  train-and-register:
+    runs-on: ubuntu-latest
+
+    outputs:
+      accuracy: ${{ steps.accuracy_check.outputs.accuracy }}
+      model_version: ${{ steps.mlflow_version.outputs.model_version }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Preprocess data
+      run: |
+        python src/preprocess.py
+
+    - name: Run Training, Log to MLflow
+      run: |
+        python src/train.py --commit $GITHUB_SHA
+
+    - name: Check Training Result
+      id: accuracy_check
+      run: |
+        ACC=$(cat output/accuracy.txt)
+        echo "accuracy=$ACC" >> $GITHUB_OUTPUT
+
+    - name: Check RUN_ID
+      id: run_id
+      run: |
+        RD=$(cat output/run_id.txt)
+        echo "id=$RD" >> $GITHUB_OUTPUT
+
+    - name: Register in MLflow.
+      if: steps.accuracy_check.outputs.accuracy > 0.85
+      run: |
+        python src/mlflow_register.py --accuracy ${{ steps.accuracy_check.outputs.accuracy }} --commit $GITHUB_SHA --mlflow_tracking_uri $MLFLOW_TRACKING_URI
+
+    - name: Mlflow version
+      if: steps.accuracy_check.outputs.accuracy > 0.85
+      id: mlflow_version
+      run: |
+        echo "model_version=$(cat model_version)" >> $GITHUB_OUTPUT
+
+  bentoml-deploy:
+    needs: train-and-register
+    runs-on: [self-hosted, linux]  # Adjust labels based on your self-hosted runner
+    if: needs.train-and-register.outputs.accuracy > 0.85
+    env:
+      MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_USER }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_PASSWORD }}
+      BENTOML_HOME: ${{ env.BENTOML_HOME }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Register in Bentoml and deploy
+      run: |
+        python src/betoml_register.py --accuracy ${{ needs.train-and-register.outputs.accuracy }} --commit ${{ github.sha }} --mlflow_tracking_uri $MLFLOW_TRACKING_URI --model_version ${{ needs.train-and-register.outputs.model_version }}

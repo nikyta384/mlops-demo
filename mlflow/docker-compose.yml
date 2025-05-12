@@ -1,0 +1,30 @@
+version: '3.7'
+
+services:
+    db:
+        restart: always
+        image: mysql/mysql-server:latest
+        env_file:
+        - '.env'
+        container_name: mlflow_db
+        # ports:
+        #     - "3306:3306"
+        volumes:
+            - dbdata:/var/lib/mysql
+
+    web:
+        restart: always
+        build: ./build
+        image: mlflow_server
+        container_name: mlflow_server
+        env_file:
+        - '.env'
+        depends_on:
+            - db
+        ports:
+            - "5001:5001"
+        command: mlflow server --backend-store-uri mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE} --host 0.0.0.0 --port 5001 --serve-artifacts --artifacts-destination s3://mlflow
+
+
+volumes:
+    dbdata:

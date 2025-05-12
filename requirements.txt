@@ -1,0 +1,26 @@
+# Core ML
+scikit-learn==1.3.0
+pandas==2.0.3
+
+# MLOps
+mlflow==2.9.2
+bentoml==1.4.13
+
+# MinIO support & S3
+boto3==1.28.60
+
+# Optional: If text preprocessing is in your pipeline (recommended for tweets)
+nltk==3.8.1
+emoji==2.8.0
+
+# For the BentoML service IO (FastAPI & Pydantic will be auto-installed with BentoML, but explicit is better)
+fastapi==0.100.0
+uvicorn==0.23.1
+
+# For local development/automation (tests etc)
+pytest==7.4.0
+
+# Parsing YAML in workflows (if needed)
+pyyaml==6.0
+boto3
+nltk

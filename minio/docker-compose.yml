@@ -1,0 +1,32 @@
+version: "3.8"
+services:
+  minio:
+    image: minio/minio:RELEASE.2024-05-28T17-19-04Z
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    env_file:
+      - .env
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+  minio-bucket-create:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until mc alias set local http://minio:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY; do
+          echo "Waiting for MinIO to be ready..."
+          sleep 2
+        done
+        mc mb --ignore-existing local/mlflow
+    env_file:
+      - .mc_env
+    restart: "no"
+volumes:
+  minio_data:
