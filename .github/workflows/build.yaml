@@ -109,9 +109,16 @@ jobs:
 
     - name: Deploy Docker image to remote host
       run: |
-        ssh -o StrictHostKeyChecking=no user@remote-host << EOF
-          docker pull ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
-          docker stop ${MODEL_NAME} || true
-          docker rm ${MODEL_NAME} || true
-          docker run -d --name ${MODEL_NAME} -p 5000:5000 ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
-        EOF
+        IMAGE=${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
+
+        if ! docker image inspect $IMAGE > /dev/null 2>&1; then
+          echo "Image not found locally. Pulling from repository..."
+          docker pull $IMAGE
+        else
+          echo "Image found locally. Skipping pull."
+        fi
+
+        docker stop ${MODEL_NAME} || true
+        docker rm ${MODEL_NAME} || true
+        docker run -d --name ${MODEL_NAME} -p 5000:5000 $IMAGE
+
