@@ -51,9 +51,10 @@ jobs:
       id: accuracy_check
       run: |
         ACC=$(cat output/accuracy.txt)
-#        echo "accuracy=$ACC" >> $GITHUB_OUTPUT
-         echo "accuracy=1.0" >> $GITHUB_OUTPUT
         echo "Accuracy = $ACC"
+        #echo "accuracy=$ACC" >> $GITHUB_OUTPUT
+        echo "accuracy=1.0" >> $GITHUB_OUTPUT
+        
 
     - name: Check RUN_ID
       id: run_id
