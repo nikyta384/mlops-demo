@@ -1,16 +1,7 @@
 import pandas as pd
 import string
-import nltk
 import re
-import os
-current_dir = os.getcwd()
-print("Current Working Directory:", current_dir)
 
-# List all files and directories in the current directory
-items = os.listdir(current_dir)
-print("Contents of the Directory:")
-for item in items:
-    print("-", item)
 # Download stopwords if not already downloaded
 DATASET = "tweet_sentiment"
 
@@ -27,8 +18,8 @@ def clean_text(text):
     return ' '.join(tokens)
 
 def main():
-    input_csv = f"dataset/{DATASET}.csv"
-    output_csv = f"dataset/{DATASET}_clean.csv"
+    input_csv = f"src/dataset/{DATASET}.csv"
+    output_csv = f"src/dataset/{DATASET}_clean.csv"
 
     df = pd.read_csv(input_csv)
     df['clean_tweet'] = df['tweet'].astype(str).apply(clean_text)
