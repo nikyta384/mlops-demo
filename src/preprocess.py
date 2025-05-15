@@ -19,8 +19,8 @@ def clean_text(text):
     return ' '.join(tokens)
 
 def main():
-    input_csv = f"../dataset/{DATASET}.csv"
-    output_csv = f"../dataset/{DATASET}_clean.csv"
+    input_csv = f"dataset/{DATASET}.csv"
+    output_csv = f"dataset/{DATASET}_clean.csv"
 
     df = pd.read_csv(input_csv)
     df['clean_tweet'] = df['tweet'].astype(str).apply(clean_text)
