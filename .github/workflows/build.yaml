@@ -98,7 +98,7 @@ jobs:
           --run_id ${{ needs.train-and-register.outputs.run_id }}
         sed -i "s/^MODEL_TAG = 'none'/MODEL_TAG = '${{ github.sha }}'/" ./service.py
         # Build a BentoML docker image, tagging by commit SHA
-        bento_tag="${MODEL_NAME}:${{ github.sha }}"
+        bento_tag="${MODEL_NAME}:latest"
         bentoml build
         bentoml containerize $bento_tag -t ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
 
