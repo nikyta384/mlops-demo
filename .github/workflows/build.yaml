@@ -68,8 +68,7 @@ jobs:
         python src/mlflow_register.py \
           --accuracy ${{ steps.accuracy_check.outputs.accuracy }} \
           --commit $GITHUB_SHA \
-          --mlflow_tracking_uri $MLFLOW_TRACKING_URI \
-          --model_version ${{ steps.run_id.outputs.id }}
+          --mlflow_tracking_uri $MLFLOW_TRACKING_URI 
 
     - name: Mlflow version
       if: steps.accuracy_check.outputs.accuracy > 0.85
