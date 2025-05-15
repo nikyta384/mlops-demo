@@ -47,7 +47,7 @@ jobs:
       run: python src/preprocess.py
 
     - name: Run Training, Log to MLflow
-      run: python src/train_v2.py --commit $GITHUB_SHA
+      run: python src/train.py --commit $GITHUB_SHA
 
     - name: Check Training Result
       id: accuracy_check
