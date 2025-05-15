@@ -74,11 +74,6 @@ jobs:
     needs: train-and-register
     runs-on: [self-hosted, linux]  # Adjust labels based on your self-hosted runner
     if: needs.train-and-register.outputs.accuracy > 0.85
-    env:
-      MLFLOW_TRACKING_URI: ${{ env.MLFLOW_TRACKING_URI }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_USER }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_PASSWORD }}
-      BENTOML_HOME: ${{ env.BENTOML_HOME }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
