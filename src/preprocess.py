@@ -2,7 +2,15 @@ import pandas as pd
 import string
 import nltk
 import re
-import argparse
+import os
+current_dir = os.getcwd()
+print("Current Working Directory:", current_dir)
+
+# List all files and directories in the current directory
+items = os.listdir(current_dir)
+print("Contents of the Directory:")
+for item in items:
+    print("-", item)
 # Download stopwords if not already downloaded
 DATASET = "tweet_sentiment"
 
