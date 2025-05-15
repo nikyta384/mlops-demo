@@ -99,6 +99,7 @@ jobs:
 
         # Build a BentoML docker image, tagging by commit SHA
         bento_tag="${MODEL_NAME}:${{ github.sha }}"
+        bentoml build
         bentoml containerize $bento_tag -t ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
 
     - name: Push Docker image to registry
