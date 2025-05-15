@@ -10,11 +10,12 @@ on:
   workflow_dispatch:
 
 env:
-  MLFLOW_TRACKING_URI: http://173.249.36.45:5001
-  MLFLOW_S3_ENDPOINT_URL: http://173.249.36.45:9001
+  MLFLOW_TRACKING_URI: http://164.68.125.61:5001
+  MLFLOW_S3_ENDPOINT_URL: http://164.68.125.61:9001
   AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_USER }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_PASSWORD }}
   BENTOML_HOME: /tmp/bentoml
+  VERSION_FILE: /root/volume/model_version
 
 jobs:
   train-and-register:
@@ -95,3 +96,4 @@ jobs:
     - name: Register in Bentoml and deploy
       run: |
         python src/betoml_register.py --accuracy ${{ needs.train-and-register.outputs.accuracy }} --commit ${{ github.sha }} --mlflow_tracking_uri $MLFLOW_TRACKING_URI --model_version ${{ needs.train-and-register.outputs.model_version }}
+        echo ${{ github.sha }} > $VERSION_FILE

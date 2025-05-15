@@ -9,3 +9,4 @@
 /mlflow/.env
 /src/__pycache__/
 /model_version
+/bentoml/
