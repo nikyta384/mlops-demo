@@ -26,6 +26,7 @@ jobs:
 
     outputs:
       accuracy: ${{ steps.accuracy_check.outputs.accuracy }}
+      run_id: ${{ steps.run_id.outputs.id }}
 
     steps:
     - name: Checkout code
@@ -94,7 +95,7 @@ jobs:
           --accuracy ${{ needs.train-and-register.outputs.accuracy }} \
           --commit ${{ github.sha }} \
           --mlflow_tracking_uri $MLFLOW_TRACKING_URI \
-          --model_version ${{ needs.train-and-register.outputs.model_version }}
+          --run_id ${{ needs.train-and-register.outputs.run_id }}
 
         # Build a BentoML docker image, tagging by commit SHA
         bento_tag="${MODEL_NAME}:${{ github.sha }}"

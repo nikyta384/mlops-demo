@@ -9,25 +9,25 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--accuracy", required=True, type=float, help="Accuracy for current training")
 parser.add_argument("--commit", required=True, help="Commit hash or unique identifier for the model version")
 parser.add_argument("--mlflow_tracking_uri", required=True, help="Remote MLflow tracking URI")
-parser.add_argument("--model_version", required=True, help="model_version")
+parser.add_argument("--run_id", required=True, help="run_id")
 args = parser.parse_args()
 
 accuracy = args.accuracy
 commit_id = args.commit
 mlflow_tracking_uri = args.mlflow_tracking_uri
-model_version = args.model_version
+run_id = args.run_id
 model_name = "my-model"
 
 mlflow.set_tracking_uri(mlflow_tracking_uri)
 
 # Load MLflow model by model version (run ID)
-model = mlflow.sklearn.load_model(f"runs:/{model_version}/model")
+model = mlflow.sklearn.load_model(f"runs:/{run_id}/model")
 
 # Save model to BentoML with labels and metadata
 bento_model = bentoml.sklearn.save_model(
     name=f"{model_name}:{commit_id}",
     model=model,
-    labels={"commit": commit_id, "version": model_version},
+    labels={"commit": commit_id, "run_id": run_id},
     metadata={"accuracy": accuracy},
 )
 
