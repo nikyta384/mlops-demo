@@ -1,0 +1,11 @@
+service: "service:my-model"
+
+description: "A Bento Service for my-model." 
+
+python:
+  requirements_txt: "requirements.txt"
+  lock_packages: false
+
+include:
+  - "**/*.py"
+  - "**/*.txt"
