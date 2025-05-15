@@ -27,7 +27,6 @@ jobs:
 
     outputs:
       accuracy: ${{ steps.accuracy_check.outputs.accuracy }}
-      model_version: ${{ steps.mlflow_version.outputs.model_version }}
 
     steps:
     - name: Checkout code
@@ -53,8 +52,8 @@ jobs:
       id: accuracy_check
       run: |
         ACC=$(cat output/accuracy.txt)
-        # echo "accuracy=$ACC" >> $GITHUB_OUTPUT
-        echo "accuracy=1.0" >> $GITHUB_OUTPUT
+        echo "accuracy=$ACC" >> $GITHUB_OUTPUT
+#         echo "accuracy=1.0" >> $GITHUB_OUTPUT
 
     - name: Check RUN_ID
       id: run_id
@@ -65,15 +64,10 @@ jobs:
     - name: Register in MLflow
       if: steps.accuracy_check.outputs.accuracy > 0.85
       run: |
-        python src/mlflow_register.py \
+        python src/register_model_v2.py \
           --accuracy ${{ steps.accuracy_check.outputs.accuracy }} \
           --commit $GITHUB_SHA \
-          --mlflow_tracking_uri $MLFLOW_TRACKING_URI 
-
-    - name: Mlflow version
-      if: steps.accuracy_check.outputs.accuracy > 0.85
-      id: mlflow_version
-      run: echo "model_version=$(cat model_version)" >> $GITHUB_OUTPUT
+          --run_id ${{ steps.run_id.outputs.id }}
 
   bentoml-deploy:
     needs: train-and-register

@@ -53,7 +53,7 @@ param_grid = {
 
 
 # Start MLflow run
-with mlflow.start_run(run_name=args.commit):
+with mlflow.start_run(run_name=args.commit) as run:
     grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='accuracy', n_jobs=-1)
     grid_search.fit(X_train, y_train)
 
@@ -105,3 +105,5 @@ with mlflow.start_run(run_name=args.commit):
                 print(f"{feature}: {coef:.4f}")
 
     print_top_features(best_model, ['negative', 'neutral', 'positive'])
+    with open("output/run_id.txt", "w") as f:
+        f.write(run.info.run_id)
