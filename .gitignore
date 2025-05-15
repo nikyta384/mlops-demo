@@ -2,7 +2,7 @@
 /secret/
 /.venv/
 /src/output/
-/dataset/tweet_sentiment_clean.csv
+/src/dataset/tweet_sentiment_clean.csv
 /src/model.pkl
 /minio/.env
 /minio/.mc_env

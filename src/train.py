@@ -13,7 +13,7 @@ import pickle
 
 MLFLOW_URL = os.getenv("MLFLOW_TRACKING_URI")
 CURRENT_DATASET_NAME = "tweet_sentiment"
-CURRENT_DATASET = f"../dataset/{CURRENT_DATASET_NAME}_clean.csv"
+CURRENT_DATASET = f"dataset/{CURRENT_DATASET_NAME}_clean.csv"
 data = pd.read_csv(CURRENT_DATASET)
 
 print(f"CURRENT_DATASET: {CURRENT_DATASET}")
