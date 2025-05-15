@@ -2,7 +2,7 @@ import os
 import mlflow
 from mlflow.tracking.client import MlflowClient
 
-def register_model(run_id: str, model_name: str, commit_id: str = None):
+def register_model(run_id: str, model_name: str,  commit_id: str = None):
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
     client = MlflowClient()
 
@@ -24,9 +24,10 @@ def register_model(run_id: str, model_name: str, commit_id: str = None):
     client.transition_model_version_stage(
         name=model_name,
         version=result.version,
+        stage='test',
         archive_existing_versions=True
     )
-    print(f"Model version {result.version}")
+    print(f"Model version {result.version} transitioned to stage 'test'")
 
 if __name__ == "__main__":
     import argparse
