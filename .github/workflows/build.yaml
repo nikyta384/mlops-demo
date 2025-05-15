@@ -1,3 +1,5 @@
+# .github/workflows/build.yaml
+
 name: MLOps CI/CD Pipeline - Build & Deploy
 
 on:
@@ -16,6 +18,8 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_PASSWORD }}
   BENTOML_HOME: /tmp/bentoml
   VERSION_FILE: /root/volume/model_version
+  DOCKER_REPO_NAME: nikyta384
+  MODEL_NAME: my-model
 
 jobs:
   train-and-register:
@@ -40,12 +44,10 @@ jobs:
         pip install -r requirements.txt
 
     - name: Preprocess data
-      run: |
-        python src/preprocess.py
+      run: python src/preprocess.py
 
     - name: Run Training, Log to MLflow
-      run: |
-        python src/train.py --commit $GITHUB_SHA
+      run: python src/train_v2.py --commit $GITHUB_SHA
 
     - name: Check Training Result
       id: accuracy_check
@@ -59,21 +61,25 @@ jobs:
         RD=$(cat output/run_id.txt)
         echo "id=$RD" >> $GITHUB_OUTPUT
 
-    - name: Register in MLflow.
+    - name: Register in MLflow
       if: steps.accuracy_check.outputs.accuracy > 0.85
       run: |
-        python src/mlflow_register.py --accuracy ${{ steps.accuracy_check.outputs.accuracy }} --commit $GITHUB_SHA --mlflow_tracking_uri $MLFLOW_TRACKING_URI
+        python src/mlflow_register.py \
+          --accuracy ${{ steps.accuracy_check.outputs.accuracy }} \
+          --commit $GITHUB_SHA \
+          --mlflow_tracking_uri $MLFLOW_TRACKING_URI \
+          --model_version ${{ steps.run_id.outputs.id }}
 
     - name: Mlflow version
       if: steps.accuracy_check.outputs.accuracy > 0.85
       id: mlflow_version
-      run: |
-        echo "model_version=$(cat model_version)" >> $GITHUB_OUTPUT
+      run: echo "model_version=$(cat model_version)" >> $GITHUB_OUTPUT
 
   bentoml-deploy:
     needs: train-and-register
-    runs-on: [self-hosted, linux]  # Adjust labels based on your self-hosted runner
+    runs-on: [self-hosted, linux]
     if: needs.train-and-register.outputs.accuracy > 0.85
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -88,7 +94,28 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Register in Bentoml and deploy
+    - name: Register with BentoML and create Docker image
       run: |
-        python src/betoml_register.py --accuracy ${{ needs.train-and-register.outputs.accuracy }} --commit ${{ github.sha }} --mlflow_tracking_uri $MLFLOW_TRACKING_URI --model_version ${{ needs.train-and-register.outputs.model_version }}
-        echo ${{ github.sha }} > $VERSION_FILE
+        python src/bentoml_register_v2.py \
+          --accuracy ${{ needs.train-and-register.outputs.accuracy }} \
+          --commit ${{ github.sha }} \
+          --mlflow_tracking_uri $MLFLOW_TRACKING_URI \
+          --model_version ${{ needs.train-and-register.outputs.model_version }}
+
+        # Build a BentoML docker image, tagging by commit SHA
+        bento_tag="${MODEL_NAME}:${{ github.sha }}"
+        bentoml containerize $bento_tag -t ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
+
+    - name: Push Docker image to registry
+      run: |
+        echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+        docker push ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
+
+    - name: Deploy Docker image to remote host
+      run: |
+        ssh -o StrictHostKeyChecking=no user@remote-host << EOF
+          docker pull ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
+          docker stop ${MODEL_NAME} || true
+          docker rm ${MODEL_NAME} || true
+          docker run -d --name ${MODEL_NAME} -p 5000:5000 ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
+        EOF

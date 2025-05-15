@@ -1,6 +1,9 @@
+# src/bentoml_register.py
+
 import bentoml
 import argparse
 import mlflow
+import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--accuracy", required=True, type=float, help="Accuracy for current training")
@@ -12,19 +15,24 @@ args = parser.parse_args()
 accuracy = args.accuracy
 commit_id = args.commit
 mlflow_tracking_uri = args.mlflow_tracking_uri
-model_name = "my-model"
 model_version = args.model_version
+model_name = "my-model"
 
 mlflow.set_tracking_uri(mlflow_tracking_uri)
 
+# Load MLflow model by model version (run ID)
+model = mlflow.sklearn.load_model(f"runs:/{model_version}/model")
 
-model = mlflow.sklearn.load_model(f"models:/{model_name}/latest")
+# Save model to BentoML with labels and metadata
 bento_model = bentoml.sklearn.save_model(
     name=f"{model_name}:{commit_id}",
     model=model,
     labels={"commit": commit_id, "version": model_version},
     metadata={"accuracy": accuracy},
 )
+
 print(f"Model registered with BentoML: {bento_model.tag}")
-with open('../../model_version', 'w') as version_file:
+
+version_filepath = os.path.join(os.path.expanduser("~"), "model_version")
+with open(version_filepath, 'w') as version_file:
     version_file.write(commit_id)
