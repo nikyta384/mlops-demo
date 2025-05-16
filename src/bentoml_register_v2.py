@@ -33,6 +33,6 @@ bento_model = bentoml.sklearn.save_model(
 
 print(f"Model registered with BentoML: {bento_model.tag}")
 
-version_filepath = os.path.join(os.path.expanduser("~"), "model_version")
-with open(version_filepath, 'w') as version_file:
-    version_file.write(commit_id)
+# version_filepath = os.path.join(os.path.expanduser("~"), "model_version")
+# with open(version_filepath, 'w') as version_file:
+#     version_file.write(commit_id)

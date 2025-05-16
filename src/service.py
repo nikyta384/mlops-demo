@@ -3,8 +3,7 @@ from bentoml.io import JSON
 import os
 from pydantic import BaseModel
 
-# with open(os.getenv('VERSION_FILE'), 'r') as m:
-#     model_tag = m.read()
+
 model_name = "my-model"
 # model_tag = '09'
 # Load the model (using 'model:latest' or a specific tag)
