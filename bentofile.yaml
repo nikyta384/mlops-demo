@@ -10,3 +10,5 @@ python:
   packages:
     - scikit-learn
     - pydantic
+models:
+  - my-model:latest
