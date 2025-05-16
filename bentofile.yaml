@@ -3,3 +3,9 @@ service: my-model
 labels:
   owner: team-name
   project: tweet-analysis
+include:
+  - "service.py"
+python:
+  packages:
+    - scikit-learn
+    - pydantic
