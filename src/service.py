@@ -3,13 +3,12 @@ from bentoml.io import JSON
 import os
 from pydantic import BaseModel
 
-MODEL_TAG = 'latest'
 # with open(os.getenv('VERSION_FILE'), 'r') as m:
 #     model_tag = m.read()
 model_name = "my-model"
 # model_tag = '09'
 # Load the model (using 'model:latest' or a specific tag)
-model_ref = bentoml.sklearn.get(f"{model_name}:{MODEL_TAG}")
+model_ref = bentoml.sklearn.get(f"{model_name}:latest")
 model_runner = model_ref.to_runner()
 
 # Create BentoML service
