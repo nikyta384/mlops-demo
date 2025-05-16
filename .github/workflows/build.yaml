@@ -91,16 +91,12 @@ jobs:
 
       - name: Register with BentoML and create Docker image
         run: |
-          python src/bentoml_register_v2.py \
+          python src/bentoml_register_v3.py \
             --accuracy ${{ needs.train-and-register.outputs.accuracy }} \
             --commit ${{ github.sha }} \
             --mlflow_tracking_uri $MLFLOW_TRACKING_URI \
-            --run_id ${{ needs.train-and-register.outputs.run_id }}
-          sed -i "s/^MODEL_TAG = 'none'/MODEL_TAG = '${{ github.sha }}'/" ./service.py
-          # Build a BentoML docker image, tagging by commit SHA
-          bento_tag="${MODEL_NAME}:latest"
-          bentoml build
-          bentoml containerize $bento_tag -t ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
+            --run_id ${{ needs.train-and-register.outputs.run_id }} \
+            --service_file service.py --docker_image_tag ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
 
       - name: Push Docker image to registry
         run: |
