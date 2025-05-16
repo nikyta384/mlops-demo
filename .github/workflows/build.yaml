@@ -96,7 +96,6 @@ jobs:
           --commit ${{ github.sha }} \
           --mlflow_tracking_uri $MLFLOW_TRACKING_URI \
           --run_id ${{ needs.train-and-register.outputs.run_id }}
-        #sed -i "s/^MODEL_TAG = 'latest'/MODEL_TAG = '${{ github.sha }}'/" ./service.py
         # Build a BentoML docker image, tagging by commit SHA
         bento_tag="${MODEL_NAME}:latest"
         bentoml build
