@@ -97,7 +97,10 @@ jobs:
           --mlflow_tracking_uri $MLFLOW_TRACKING_URI \
           --run_id ${{ needs.train-and-register.outputs.run_id }}
         # Build a BentoML docker image, tagging by commit SHA
+        echo "RUN         bentoml models list: "
         bentoml models list
+        echo "RUN         bentoml list:"
+        bentoml list
         echo "RUN bentoml build"
         bento_tag="${MODEL_NAME}:latest"
         bentoml build
