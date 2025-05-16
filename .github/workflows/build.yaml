@@ -97,6 +97,8 @@ jobs:
             --mlflow_tracking_uri $MLFLOW_TRACKING_URI \
             --run_id ${{ needs.train-and-register.outputs.run_id }} \
             --service_file service.py --docker_image_tag ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
+          bento_tag=${MODEL_NAME}:${{ github.sha }}
+          bentoml containerize $bento_tag -t ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
 
       - name: Push Docker image to registry
         run: |

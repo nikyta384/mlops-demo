@@ -44,22 +44,18 @@ with open(version_filepath, 'w') as version_file:
     version_file.write(commit_id)
 
 # Create Bento by building the service with the registered model
-bento = Bento.create(
-    name=f"{model_name}",
-    tag=f"{model_name}:{commit_id}",
-    model=bento_model,
-    build_config={
-        "service": service_file,  # Path to service definition file
-        "python": {
-            "packages": ["mlflow", "scikit-learn"],  # Required dependencies
-        },
+bento = bentoml.build(
+    # name=f"{model_name}",
+    # tag=f"{model_name}:{commit_id}",
+    service="service.py",
+    version=commit_id,
+    include=["*.py", "src/*.py"],
+    labels={
+        "commit_id": commit_id,
     },
+    python=dict(
+        packages=["scikit-learn", "pydantic"],
+    ),
 )
 
 print(f"Bento created: {bento.tag}")
-
-# Containerize the Bento (build Docker image)
-docker_image_tag = docker_image_tag or str(bento.tag)  # Use Bento tag if no Docker tag provided
-bento.containerize(docker_image_tag=docker_image_tag)
-
-print(f"Docker image built with tag: {docker_image_tag}")
