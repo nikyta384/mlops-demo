@@ -3,14 +3,3 @@ service: my-model
 labels:
   owner: team-name
   project: tweet-analysis
-runners:
-  - name: model_runner
-    models:
-      - my-model:latest
-apis:
-  - name: analyse_tweet
-    input:
-      type: JSON
-      pydantic_model: service.TweetAnalysis
-    output:
-      type: JSON
