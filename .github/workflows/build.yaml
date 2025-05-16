@@ -29,46 +29,46 @@ jobs:
       run_id: ${{ steps.run_id.outputs.id }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Preprocess data
-      run: python src/preprocess.py
+      - name: Preprocess data
+        run: python src/preprocess.py
 
-    - name: Run Training, Log to MLflow
-      run: python src/train.py --commit $GITHUB_SHA
+      - name: Run Training, Log to MLflow
+        run: python src/train.py --commit $GITHUB_SHA
 
-    - name: Check Training Result
-      id: accuracy_check
-      run: |
-        ACC=$(cat output/accuracy.txt)
-        echo "Accuracy = $ACC"
-        #echo "accuracy=$ACC" >> $GITHUB_OUTPUT
-        echo "accuracy=1.0" >> $GITHUB_OUTPUT
-        
+      - name: Check Training Result
+        id: accuracy_check
+        run: |
+          ACC=$(cat output/accuracy.txt)
+          echo "Accuracy = $ACC"
+          #echo "accuracy=$ACC" >> $GITHUB_OUTPUT
+          echo "accuracy=1.0" >> $GITHUB_OUTPUT
 
-    - name: Check RUN_ID
-      id: run_id
-      run: |
-        RD=$(cat output/run_id.txt)
-        echo "id=$RD" >> $GITHUB_OUTPUT
 
-    - name: Register in MLflow
-      if: steps.accuracy_check.outputs.accuracy > 0.85
-      run: |
-        python src/register_model_v2.py \
-          --commit $GITHUB_SHA \
-          --run_id ${{ steps.run_id.outputs.id }}
+      - name: Check RUN_ID
+        id: run_id
+        run: |
+          RD=$(cat output/run_id.txt)
+          echo "id=$RD" >> $GITHUB_OUTPUT
+
+      - name: Register in MLflow
+        if: steps.accuracy_check.outputs.accuracy > 0.85
+        run: |
+          python src/register_model_v2.py \
+            --commit $GITHUB_SHA \
+            --run_id ${{ steps.run_id.outputs.id }}
 
   bentoml-deploy:
     needs: train-and-register
@@ -76,53 +76,48 @@ jobs:
     if: needs.train-and-register.outputs.accuracy > 0.85
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Register with BentoML and create Docker image
-      run: |
-        python src/bentoml_register_v2.py \
-          --accuracy ${{ needs.train-and-register.outputs.accuracy }} \
-          --commit ${{ github.sha }} \
-          --mlflow_tracking_uri $MLFLOW_TRACKING_URI \
-          --run_id ${{ needs.train-and-register.outputs.run_id }}
-        # Build a BentoML docker image, tagging by commit SHA
-        echo "RUN         bentoml models list: "
-        bentoml models list
-        echo "RUN         bentoml list:"
-        bentoml list
-        echo "RUN bentoml build"
-        bento_tag="${MODEL_NAME}:latest"
-        bentoml build
-        bentoml containerize $bento_tag -t ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
+      - name: Register with BentoML and create Docker image
+        run: |
+          python src/bentoml_register_v2.py \
+            --accuracy ${{ needs.train-and-register.outputs.accuracy }} \
+            --commit ${{ github.sha }} \
+            --mlflow_tracking_uri $MLFLOW_TRACKING_URI \
+            --run_id ${{ needs.train-and-register.outputs.run_id }}
+          sed -i "s/^MODEL_TAG = 'none'/MODEL_TAG = '${{ github.sha }}'/" ./service.py
+          # Build a BentoML docker image, tagging by commit SHA
+          bento_tag="${MODEL_NAME}:latest"
+          bentoml build
+          bentoml containerize $bento_tag -t ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
 
-    - name: Push Docker image to registry
-      run: |
-        echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-        docker push ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
+      - name: Push Docker image to registry
+        run: |
+          echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+          docker push ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
 
-    - name: Deploy Docker image to remote host
-      run: |
-        IMAGE=${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
-
-        if ! docker image inspect $IMAGE > /dev/null 2>&1; then
-          echo "Image not found locally. Pulling from repository..."
-          docker pull $IMAGE
-        else
-          echo "Image found locally. Skipping pull."
-        fi
-
-        docker stop ${MODEL_NAME} || true
-        docker rm ${MODEL_NAME} || true
-        docker run -d --name ${MODEL_NAME} -p 3001:3000 $IMAGE
-
+      - name: Deploy Docker image to remote host
+        run: |
+          IMAGE=${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
+          
+          if ! docker image inspect $IMAGE > /dev/null 2>&1; then
+            echo "Image not found locally. Pulling from repository..."
+            docker pull $IMAGE
+          else
+            echo "Image found locally. Skipping pull."
+          fi
+          
+          docker stop ${MODEL_NAME} || true
+          docker rm ${MODEL_NAME} || true
+          docker run -d --name ${MODEL_NAME} -p 3001:3000 $IMAGE
