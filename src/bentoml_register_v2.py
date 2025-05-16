@@ -30,7 +30,11 @@ bento_model = bentoml.sklearn.save_model(
     labels={"commit": commit_id, "run_id": run_id},
     metadata={"accuracy": accuracy},
 )
-bentoml.models.set_latest(model_name, commit_id)
+# Add a "latest" alias/tag pointing to this commit
+bento_model.tag = f"{model_name}:latest"
+bento_model._bento_model_metadata.tag.name = "latest"
+bento_model.save()
+
 print(f"Model registered with BentoML: {bento_model.tag}")
 
 # version_filepath = os.path.join(os.path.expanduser("~"), "model_version")
