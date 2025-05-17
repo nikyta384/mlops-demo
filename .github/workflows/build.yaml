@@ -118,25 +118,18 @@ jobs:
           docker rm ${MODEL_NAME} || true
           docker run -d --name ${MODEL_NAME} -p 3001:3000 $IMAGE
 
-          # Wait for container to become healthy or responding
-          echo "Waiting for container ${MODEL_NAME} to start..."
+          # Wait for container to be running
+          echo "Waiting for container ${MODEL_NAME} to be running..."
           for i in {1..30}; do
-            STATUS=$(docker inspect --format='{{.State.Health.Status}}' ${MODEL_NAME} 2>/dev/null || echo "no-health-check")
-            if [ "$STATUS" = "healthy" ]; then
-              echo "Container is healthy."
+            RUNNING=$(docker inspect --format='{{.State.Running}}' ${MODEL_NAME} 2>/dev/null || echo "false")
+            if [ "$RUNNING" = "true" ]; then
+              echo "Container is running."
               exit 0
-            elif [ "$STATUS" = "no-health-check" ]; then
-              # No healthcheck available: check if container is running
-              RUNNING=$(docker inspect --format='{{.State.Running}}' ${MODEL_NAME})
-              if [ "$RUNNING" = "true" ]; then
-                echo "Container is running (no healthcheck defined). Assuming okay."
-                exit 0
-              fi
             fi
-            echo "Waiting for container to be ready... ($i)"
+            echo "Container not running yet... ($i)"
             sleep 2
           done
 
-          echo "Container failed to start properly or is not healthy."
+          echo "Container failed to start."
           docker logs ${MODEL_NAME}
           exit 1

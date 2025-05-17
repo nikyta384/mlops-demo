@@ -14,7 +14,7 @@ services:
 
     web:
         restart: always
-        build: ./build
+        build: build
         image: mlflow_server
         container_name: mlflow_server
         env_file:

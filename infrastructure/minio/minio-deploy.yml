@@ -3,8 +3,8 @@
   become: yes
   vars:
     remote_working_dir: '/minio'
-    env_file: '../secret/.minio_env'
-    mc_env: '../secret/.mc_env'
+    env_file: '../.secret/.minio_env'
+    mc_env: '../.secret/.mc_env'
     compose_file: "./docker-compose.yml"
 
   tasks:
