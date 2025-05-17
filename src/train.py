@@ -40,15 +40,15 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 # Create a pipeline with TF-IDF and LinearSVC
 pipeline = Pipeline([
-    ('tfidf', TfidfVectorizer(max_features=10000, ngram_range=(1, 3))),
-    ('classifier', LinearSVC(max_iter=1000))
+    ('tfidf', TfidfVectorizer(max_features=10000, ngram_range=(1, 2), stop_words=stop_words)),
+    ('classifier', LinearSVC(max_iter=5000))  # Increase max_iter
 ])
 
 # Hyperparameter tuning with GridSearchCV
 param_grid = {
-    'tfidf__max_df': [0.8, 0.9],
-    'tfidf__min_df': [1, 2],
-    'classifier__C': [0.1, 1.0]
+    'tfidf__max_df': [0.8, 0.9, 1.0],
+    'tfidf__min_df': [1, 2, 5],
+    'classifier__C': [0.1, 1.0, 10.0]
 }
 
 
