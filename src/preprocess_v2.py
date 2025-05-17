@@ -4,7 +4,7 @@ import re
 import glob
 
 DATASET = "tweet_sentiment"
-DATASET_PATH = "dataset/"
+DATASET_PATH = "src/dataset/"
 
 def clean_text(text):
     text = text.lower()
