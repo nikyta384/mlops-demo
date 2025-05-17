@@ -42,7 +42,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Preprocess data
-        run: python src/preprocess.py
+        run: python src/preprocess_v2.py
 
       - name: Run Training, Log to MLflow
         run: python src/train_v2.py --commit ${{ github.sha }}
