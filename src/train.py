@@ -40,7 +40,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 
 # Create a pipeline with TF-IDF and LinearSVC
 pipeline = Pipeline([
-    ('tfidf', TfidfVectorizer(max_features=10000, ngram_range=(1, 2), stop_words=stop_words)),
+    ('tfidf', TfidfVectorizer(max_features=10000, ngram_range=(1, 2))),
     ('classifier', LinearSVC(max_iter=5000))  # Increase max_iter
 ])
 
