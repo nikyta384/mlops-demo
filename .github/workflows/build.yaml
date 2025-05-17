@@ -16,7 +16,6 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_USER }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_PASSWORD }}
   BENTOML_HOME: /tmp/bentoml
-  VERSION_FILE: /root/volume/model_version
   DOCKER_REPO_NAME: nikyta384
   MODEL_NAME: my-model
 
@@ -46,7 +45,7 @@ jobs:
         run: python src/preprocess.py
 
       - name: Run Training, Log to MLflow
-        run: python src/train.py --commit $GITHUB_SHA
+        run: python src/train.py --commit ${{ github.sha }}
 
       - name: Check Training Result
         id: accuracy_check
@@ -66,8 +65,8 @@ jobs:
       - name: Register in MLflow
         if: steps.accuracy_check.outputs.accuracy > 0.85
         run: |
-          python src/register_model_v2.py \
-            --commit $GITHUB_SHA \
+          python src/register_model.py \
+            --commit ${{ github.sha }} \
             --run_id ${{ steps.run_id.outputs.id }}
 
   bentoml-deploy:
@@ -91,10 +90,9 @@ jobs:
 
       - name: Register with BentoML and create Docker image
         run: |
-          python src/bentoml_register_v3.py \
+          python src/bentoml_register.py \
             --accuracy ${{ needs.train-and-register.outputs.accuracy }} \
             --commit ${{ github.sha }} \
-            --mlflow_tracking_uri $MLFLOW_TRACKING_URI \
             --run_id ${{ needs.train-and-register.outputs.run_id }} \
             --service_file service.py --docker_image_tag ${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
           bento_tag=${MODEL_NAME}:${{ github.sha }}
@@ -108,14 +106,37 @@ jobs:
       - name: Deploy Docker image to remote host
         run: |
           IMAGE=${DOCKER_REPO_NAME}/${MODEL_NAME}:${{ github.sha }}
-          
+
           if ! docker image inspect $IMAGE > /dev/null 2>&1; then
             echo "Image not found locally. Pulling from repository..."
             docker pull $IMAGE
           else
             echo "Image found locally. Skipping pull."
           fi
-          
+
           docker stop ${MODEL_NAME} || true
           docker rm ${MODEL_NAME} || true
           docker run -d --name ${MODEL_NAME} -p 3001:3000 $IMAGE
+
+          # Wait for container to become healthy or responding
+          echo "Waiting for container ${MODEL_NAME} to start..."
+          for i in {1..30}; do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' ${MODEL_NAME} 2>/dev/null || echo "no-health-check")
+            if [ "$STATUS" = "healthy" ]; then
+              echo "Container is healthy."
+              exit 0
+            elif [ "$STATUS" = "no-health-check" ]; then
+              # No healthcheck available: check if container is running
+              RUNNING=$(docker inspect --format='{{.State.Running}}' ${MODEL_NAME})
+              if [ "$RUNNING" = "true" ]; then
+                echo "Container is running (no healthcheck defined). Assuming okay."
+                exit 0
+              fi
+            fi
+            echo "Waiting for container to be ready... ($i)"
+            sleep 2
+          done
+
+          echo "Container failed to start properly or is not healthy."
+          docker logs ${MODEL_NAME}
+          exit 1
