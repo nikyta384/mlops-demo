@@ -9,6 +9,7 @@ from sklearn.svm import LinearSVC
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
 from sklearn.utils.class_weight import compute_class_weight
 import xgboost as xgb
 import os
@@ -64,12 +65,17 @@ data['clean_tweet'] = data['clean_tweet'].apply(preprocess_text)
 X = data['clean_tweet']
 y = data['sentiment']
 
+# Encode string labels to integers
+label_encoder = LabelEncoder()
+y_encoded = label_encoder.fit_transform(y)
+class_names = label_encoder.classes_  # ['negative', 'neutral', 'positive']
+
 # Check class distribution
 print("\nClass distribution:")
-print(y.value_counts(normalize=True))
+print(pd.Series(y_encoded).value_counts(normalize=True))
 
 # Split into train and test sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded)
 
 # Compute class weights for imbalance
 class_weights = compute_class_weight('balanced', classes=np.unique(y_train), y=y_train)
@@ -134,7 +140,7 @@ with mlflow.start_run(run_name=args.commit) as run:
     y_pred = best_model.predict(X_test)
     test_accuracy = accuracy_score(y_test, y_pred)
     print("\nTest Set Classification Report:")
-    print(classification_report(y_test, y_pred, target_names=['negative', 'neutral', 'positive']))
+    print(classification_report(y_test, y_pred, target_names=class_names))
 
     # Log parameters and metrics
     mlflow.log_params(best_params)
@@ -157,7 +163,7 @@ with mlflow.start_run(run_name=args.commit) as run:
     # Log confusion matrix
     cm = confusion_matrix(y_test, y_pred)
     plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['negative', 'neutral', 'positive'], yticklabels=['negative', 'neutral', 'positive'])
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
     plt.title('Confusion Matrix')
     plt.ylabel('True Label')
     plt.xlabel('Predicted Label')
@@ -171,7 +177,7 @@ with mlflow.start_run(run_name=args.commit) as run:
     print(best_model.named_steps['tfidf'].get_feature_names_out()[:20])
 
     # Feature importance
-    def print_top_features(model, class_names):
+    def print_top_features(model, class_names, model_type):
         tfidf = model.named_steps['tfidf']
         feature_names = tfidf.get_feature_names_out()
         if model_type == "LinearSVC":
@@ -185,12 +191,18 @@ with mlflow.start_run(run_name=args.commit) as run:
             classifier = model.named_steps['classifier']
             importance = classifier.feature_importances_
             top_indices = importance.argsort()[-10:][::-1]
-            print("\nTop features for XGBoost:")
+            print("\nTop features for XGBoost (global):")
             for idx in top_indices:
                 print(f"{feature_names[idx]}: {importance[idx]:.4f}")
 
-    print_top_features(best_model, ['negative', 'neutral', 'positive'])
+    print_top_features(best_model, class_names, model_type)
 
     # Save run ID
     with open("output/run_id.txt", "w") as f:
         f.write(run.info.run_id)
+
+    # Save label encoder for inference
+    label_encoder_path = "label_encoder.pkl"
+    with open(label_encoder_path, "wb") as f:
+        pickle.dump(label_encoder, f)
+    mlflow.log_artifact(label_encoder_path)
