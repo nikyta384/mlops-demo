@@ -18,6 +18,7 @@ env:
   BENTOML_HOME: /tmp/bentoml
   DOCKER_REPO_NAME: nikyta384
   MODEL_NAME: my-model
+  MIN_ACCURACY: 0.8
 
 jobs:
   train-and-register:
@@ -45,15 +46,15 @@ jobs:
         run: python src/preprocess.py
 
       - name: Run Training, Log to MLflow
-        run: python src/train_v1.py --commit ${{ github.sha }}
+        run: python src/train.py --commit ${{ github.sha }}
 
       - name: Check Training Result
         id: accuracy_check
         run: |
           ACC=$(cat output/accuracy.txt)
           echo "Accuracy = $ACC"
-          #echo "accuracy=$ACC" >> $GITHUB_OUTPUT
-          echo "accuracy=1.0" >> $GITHUB_OUTPUT
+          echo "accuracy=$ACC" >> $GITHUB_OUTPUT
+          #echo "accuracy=1.0" >> $GITHUB_OUTPUT
 
 
       - name: Check RUN_ID
@@ -63,7 +64,7 @@ jobs:
           echo "id=$RD" >> $GITHUB_OUTPUT
 
       - name: Register in MLflow
-        if: steps.accuracy_check.outputs.accuracy > 0.85
+        if: steps.accuracy_check.outputs.accuracy > $MIN_ACCURACY
         run: |
           python src/register_model.py \
             --commit ${{ github.sha }} \
@@ -72,7 +73,7 @@ jobs:
   bentoml-deploy:
     needs: train-and-register
     runs-on: [self-hosted, linux]
-    if: needs.train-and-register.outputs.accuracy > 0.85
+    if: needs.train-and-register.outputs.accuracy > $MIN_ACCURACY
 
     steps:
       - name: Checkout code
