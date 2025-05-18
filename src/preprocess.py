@@ -4,7 +4,7 @@ import re
 
 # Download stopwords if not already downloaded
 DATASET = "tweet_sentiment"
-DATASET_dir = "dataset/"
+DATASET_dir = "src/dataset/"
 def clean_text(text):
     # Lowercase
     text = text.lower()
