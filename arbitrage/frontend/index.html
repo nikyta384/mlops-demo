@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Arbitrage Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d0f1a;
+      --card: #151828;
+      --border: #232743;
+      --accent: #4f8ef7;
+      --green: #22c55e;
+      --red: #ef4444;
+      --muted: #6b7280;
+      --text: #e5e7eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; }
+    header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 18px; font-weight: 700; color: var(--accent); }
+    .tabs { display: flex; gap: 2px; margin-left: auto; }
+    .tab { padding: 7px 18px; border-radius: 6px 6px 0 0; cursor: pointer; background: var(--card); border: 1px solid var(--border); border-bottom: none; color: var(--muted); transition: color .15s; }
+    .tab.active { color: var(--text); background: #1c2035; }
+    .page { display: none; padding: 20px 24px; }
+    .page.active { display: block; }
+    /* Selectors */
+    .selector-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end; }
+    .selector-bar label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+    select, input[type=number] { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 14px; min-width: 130px; }
+    select:focus, input:focus { outline: 2px solid var(--accent); }
+    button { padding: 8px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity .15s; }
+    button:hover { opacity: .85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-red { background: var(--red); color: #fff; }
+    /* Grid */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    @media(max-width:900px){ .grid-2,.grid-3 { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .card-title { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 10px; }
+    /* Spread chart */
+    .chart-wrap { position: relative; height: 200px; }
+    /* Order book */
+    .ob-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .ob-table th { color: var(--muted); font-weight: 400; text-align: right; padding: 3px 6px; }
+    .ob-table td { text-align: right; padding: 3px 6px; }
+    .ob-ask td { color: var(--red); }
+    .ob-bid td { color: var(--green); }
+    /* Stats row */
+    .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { color: var(--muted); }
+    .stat-value { font-weight: 600; }
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+    /* Trade panel */
+    .trade-panel { max-width: 460px; }
+    .trade-panel input[type=number] { width: 100%; }
+    .trade-actions { display: flex; gap: 10px; margin-top: 12px; }
+    /* Trade table */
+    #trades-table-wrap { overflow-x: auto; }
+    table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-table th { background: var(--border); padding: 8px 10px; text-align: left; white-space: nowrap; }
+    .data-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .data-table tr:hover td { background: #1c2035; }
+    .status-open { color: var(--accent); }
+    .status-closed { color: var(--muted); }
+    .status-error { color: var(--red); }
+    .pagination { display: flex; gap: 8px; margin-top: 14px; align-items: center; }
+    #toast { position: fixed; bottom: 24px; right: 24px; background: #232743; border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; font-size: 14px; z-index: 99; display: none; max-width: 360px; }
+    #toast.ok { border-color: var(--green); color: var(--green); }
+    #toast.err { border-color: var(--red); color: var(--red); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+    .badge-open { background: #1e3a5f; color: var(--accent); }
+    .badge-closed { background: #1c2035; color: var(--muted); }
+    .badge-error { background: #3b1010; color: var(--red); }
+    .connection-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 6px; }
+    .connection-dot.live { background: var(--green); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ Crypto Arbitrage</h1>
+  <div id="ws-status"><span class="connection-dot" id="dot"></span><span id="ws-label" style="color:var(--muted);font-size:12px">disconnected</span></div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('dashboard')">Dashboard</div>
+    <div class="tab" onclick="switchTab('history')">Trade History</div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════ DASHBOARD PAGE ═══════════════════════════ -->
+<div id="page-dashboard" class="page active">
+
+  <!-- Selectors -->
+  <div class="selector-bar">
+    <label>Long exchange
+      <select id="sel-long"></select>
+    </label>
+    <label>Short exchange
+      <select id="sel-short"></select>
+    </label>
+    <label>Token
+      <select id="sel-token"></select>
+    </label>
+    <button class="btn-primary" onclick="connectMarket()">Connect</button>
+  </div>
+
+  <!-- Spread chart + funding stats -->
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">Spread history (bid<sub>short</sub> − ask<sub>long</sub>)</div>
+      <div class="chart-wrap"><canvas id="spread-chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Funding &amp; carry</div>
+      <div class="stat-row"><span class="stat-label">Funding Long</span><span class="stat-value" id="stat-fl">—</span></div>
+      <div class="stat-row"><span class="stat-label">Funding Short</span><span class="stat-value" id="stat-fs">—</span></div>
+      <div class="stat-row"><span class="stat-label">Net Funding (8h)</span><span class="stat-value" id="stat-nf">—</span></div>
+      <div class="stat-row"><span class="stat-label">Expected Carry (per token)</span><span class="stat-value" id="stat-ec">—</span></div>
+      <div class="stat-row"><span class="stat-label">Spread %</span><span class="stat-value" id="stat-sp">—</span></div>
+      <div class="stat-row"><span class="stat-label">Best Ask (Long)</span><span class="stat-value" id="stat-al">—</span></div>
+      <div class="stat-row"><span class="stat-label">Best Bid (Short)</span><span class="stat-value" id="stat-bs">—</span></div>
+    </div>
+  </div>
+
+  <!-- Order books -->
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-title" id="ob-long-title">Order Book – Long Exchange</div>
+      <table class="ob-table">
+        <thead><tr><th>Price</th><th>Qty</th></tr></thead>
+        <tbody id="ob-long-body"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title" id="ob-short-title">Order Book – Short Exchange</div>
+      <table class="ob-table">
+        <thead><tr><th>Price</th><th>Qty</th></tr></thead>
+        <tbody id="ob-short-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Trade panel -->
+  <div class="card trade-panel">
+    <div class="card-title">Execute Arbitrage</div>
+    <label style="display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:12px;margin-bottom:12px">
+      Position Size (base token)
+      <input type="number" id="position-size" value="0.01" min="0.0001" step="0.001" placeholder="0.01" />
+    </label>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
+      <span>Long: <b id="trade-long-label">—</b></span> &nbsp;|&nbsp;
+      <span>Short: <b id="trade-short-label">—</b></span> &nbsp;|&nbsp;
+      <span>Token: <b id="trade-token-label">—</b></span>
+    </div>
+    <div class="trade-actions">
+      <button class="btn-green" onclick="openTrade()">OPEN ↑↓</button>
+      <button class="btn-red" onclick="promptClose()">CLOSE ↓↑</button>
+    </div>
+    <div id="trade-status-msg" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ HISTORY PAGE ═══════════════════════════ -->
+<div id="page-history" class="page">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div>
+      <select id="hist-status-filter" onchange="loadHistory(0)" style="min-width:120px">
+        <option value="">All statuses</option>
+        <option value="open">Open</option>
+        <option value="closed">Closed</option>
+        <option value="error">Error</option>
+      </select>
+    </div>
+    <button class="btn-primary" onclick="loadHistory(histOffset)">↻ Refresh</button>
+  </div>
+  <div id="trades-table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Opened</th><th>Long</th><th>Short</th><th>Token</th>
+          <th>Size</th><th>Entry L</th><th>Entry S</th>
+          <th>Exit L</th><th>Exit S</th>
+          <th>Net Fund.</th><th>PnL</th><th>Status</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="hist-body"></tbody>
+    </table>
+  </div>
+  <div class="pagination">
+    <button class="btn-primary" onclick="loadHistory(Math.max(0,histOffset-50))">← Prev</button>
+    <span id="hist-page-info" style="color:var(--muted)"></span>
+    <button class="btn-primary" onclick="loadHistory(histOffset+50)">Next →</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─────────────────────────────────── Config ───────────────────────────────
+// API base URL:
+//   ''  (empty string) = same-origin, used in production when frontend is served by backend
+//   'http://localhost:8000' = separate dev server
+const API = '';  // change to 'http://localhost:8000' for standalone frontend dev
+
+// ─────────────────────────────────── Utils ────────────────────────────────
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = type;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+function fmt(n, dec=6) {
+  if (n == null || n === undefined) return '—';
+  return Number(n).toFixed(dec);
+}
+
+function fmtPct(n) {
+  if (n == null) return '—';
+  const v = Number(n) * 100;
+  const cls = v >= 0 ? 'positive' : 'negative';
+  return `<span class="${cls}">${v >= 0 ? '+' : ''}${v.toFixed(4)}%</span>`;
+}
+
+function colorClass(n) { return Number(n) >= 0 ? 'positive' : 'negative'; }
+
+// ─────────────────────────────────── Tabs ─────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['dashboard','history'][i] === name));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (name === 'history') loadHistory(0);
+}
+
+// ─────────────────────────────── Populate selects ─────────────────────────
+async function loadMeta() {
+  const [connectors, tokens] = await Promise.all([
+    fetch(API + '/api/v1/market/connectors').then(r => r.json()),
+    fetch(API + '/api/v1/market/tokens').then(r => r.json()),
+  ]);
+  const selLong = document.getElementById('sel-long');
+  const selShort = document.getElementById('sel-short');
+  const selToken = document.getElementById('sel-token');
+  connectors.forEach(c => {
+    selLong.append(new Option(c, c));
+    selShort.append(new Option(c, c));
+  });
+  if (connectors.length > 1) selShort.value = connectors[1];
+  tokens.forEach(t => selToken.append(new Option(t, t)));
+}
+
+// ─────────────────────────────── Spread chart ─────────────────────────────
+const MAX_POINTS = 120;
+const spreadLabels = [];
+const spreadData = [];
+let spreadChart;
+
+function initChart() {
+  const ctx = document.getElementById('spread-chart').getContext('2d');
+  spreadChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: spreadLabels,
+      datasets: [{
+        label: 'Spread ($)',
+        data: spreadData,
+        borderColor: '#4f8ef7',
+        backgroundColor: 'rgba(79,142,247,.10)',
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { display: false },
+        y: { grid: { color: '#232743' }, ticks: { color: '#6b7280' } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+function pushSpread(ts, value) {
+  const label = new Date(ts).toLocaleTimeString();
+  spreadLabels.push(label);
+  spreadData.push(value);
+  if (spreadLabels.length > MAX_POINTS) {
+    spreadLabels.shift(); spreadData.shift();
+  }
+  spreadChart.update('none');
+}
+
+// ─────────────────────────────── WebSocket ────────────────────────────────
+let ws = null;
+let currentSub = null;
+
+function connectMarket() {
+  const long = document.getElementById('sel-long').value;
+  const short = document.getElementById('sel-short').value;
+  const token = document.getElementById('sel-token').value;
+  if (!long || !short || !token) return toast('Select all fields', 'err');
+  if (long === short) return toast('Connectors must be different', 'err');
+
+  currentSub = { connector_long: long, connector_short: short, token };
+
+  document.getElementById('trade-long-label').textContent = long;
+  document.getElementById('trade-short-label').textContent = short;
+  document.getElementById('trade-token-label').textContent = token;
+
+  if (ws) ws.close();
+
+  const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsBase = API || (wsProto + '://' + location.host);
+  ws = new WebSocket(wsBase.replace(/^http/, 'ws') + '/ws/market');
+
+  ws.onopen = () => {
+    setDot(true);
+    ws.send(JSON.stringify({ action: 'subscribe', ...currentSub }));
+  };
+  ws.onclose = () => setDot(false);
+  ws.onerror = () => { setDot(false); toast('WebSocket error', 'err'); };
+  ws.onmessage = e => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'market_update') renderSnapshot(msg.data);
+    if (msg.type === 'error') toast(msg.message, 'err');
+  };
+}
+
+function setDot(live) {
+  document.getElementById('dot').className = 'connection-dot' + (live ? ' live' : '');
+  document.getElementById('ws-label').textContent = live ? 'live' : 'disconnected';
+  document.getElementById('ws-label').style.color = live ? 'var(--green)' : 'var(--muted)';
+}
+
+// ─────────────────────────────── Render snapshot ──────────────────────────
+function renderSnapshot(d) {
+  const sp = d.spread;
+  pushSpread(sp.timestamp, sp.spread_abs);
+
+  // Stats
+  document.getElementById('stat-fl').innerHTML = fmtPct(d.funding_long.rate);
+  document.getElementById('stat-fs').innerHTML = fmtPct(d.funding_short.rate);
+  document.getElementById('stat-nf').innerHTML = fmtPct(d.net_funding);
+  const carry = d.expected_carry_8h;
+  document.getElementById('stat-ec').innerHTML = `<span class="${colorClass(carry)}">$${fmt(carry, 4)}</span>`;
+  document.getElementById('stat-sp').innerHTML = fmtPct(sp.spread_pct / 100);
+  document.getElementById('stat-al').textContent = '$' + fmt(sp.best_ask_long, 2);
+  document.getElementById('stat-bs').textContent = '$' + fmt(sp.best_bid_short, 2);
+
+  // Order books
+  renderOB('ob-long', d.orderbook_long);
+  renderOB('ob-short', d.orderbook_short);
+  document.getElementById('ob-long-title').textContent = `Order Book – ${d.orderbook_long.connector.toUpperCase()}`;
+  document.getElementById('ob-short-title').textContent = `Order Book – ${d.orderbook_short.connector.toUpperCase()}`;
+}
+
+function renderOB(id, ob) {
+  const body = document.getElementById(id + '-body');
+  const asks = (ob.asks || []).slice(0, 5).reverse();
+  const bids = (ob.bids || []).slice(0, 5);
+  let html = '';
+  asks.forEach(a => html += `<tr class="ob-ask"><td>${fmt(a.price, 2)}</td><td>${fmt(a.qty, 4)}</td></tr>`);
+  bids.forEach(b => html += `<tr class="ob-bid"><td>${fmt(b.price, 2)}</td><td>${fmt(b.qty, 4)}</td></tr>`);
+  body.innerHTML = html;
+}
+
+// ─────────────────────────────── Trade execution ──────────────────────────
+async function openTrade() {
+  if (!currentSub) return toast('Connect to market first', 'err');
+  const size = parseFloat(document.getElementById('position-size').value);
+  if (!size || size <= 0) return toast('Enter valid position size', 'err');
+  const msg = document.getElementById('trade-status-msg');
+  msg.textContent = 'Executing…';
+  try {
+    const res = await fetch(API + '/api/v1/trades/open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...currentSub, position_size: size }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+    msg.textContent = `Opened trade #${data.id} | entry_long=$${fmt(data.entry_price_long,2)} entry_short=$${fmt(data.entry_price_short,2)}`;
+    toast(`✓ Trade #${data.id} opened`, 'ok');
+  } catch(e) {
+    msg.textContent = 'Error: ' + e.message;
+    toast('Open failed: ' + e.message, 'err');
+  }
+}
+
+async function promptClose() {
+  const idStr = prompt('Enter Trade ID to close:');
+  if (!idStr) return;
+  const id = parseInt(idStr);
+  if (!id) return toast('Invalid trade ID', 'err');
+  const sizeStr = prompt('Close size (leave blank for full close):');
+  const body = { trade_id: id };
+  if (sizeStr && parseFloat(sizeStr) > 0) body.close_size = parseFloat(sizeStr);
+  const msg = document.getElementById('trade-status-msg');
+  msg.textContent = 'Closing…';
+  try {
+    const res = await fetch(API + '/api/v1/trades/close', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+    msg.textContent = `Closed trade #${data.id} | PnL=$${fmt(data.realized_pnl,4)}`;
+    toast(`✓ Trade #${data.id} closed | PnL=${fmt(data.realized_pnl,4)}`, 'ok');
+    loadHistory(histOffset);
+  } catch(e) {
+    msg.textContent = 'Error: ' + e.message;
+    toast('Close failed: ' + e.message, 'err');
+  }
+}
+
+// ─────────────────────────────── Trade history ────────────────────────────
+let histOffset = 0;
+let histTotal = 0;
+
+async function loadHistory(offset) {
+  histOffset = Math.max(0, offset);
+  const status = document.getElementById('hist-status-filter').value;
+  let url = `${API}/api/v1/trades/?offset=${histOffset}&limit=50`;
+  if (status) url += `&status=${status}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    histTotal = data.total;
+    renderHistory(data.items);
+    document.getElementById('hist-page-info').textContent =
+      `${histOffset + 1}–${Math.min(histOffset + 50, histTotal)} of ${histTotal}`;
+  } catch(e) {
+    toast('Failed to load history: ' + e.message, 'err');
+  }
+}
+
+function statusBadge(s) {
+  const map = { open: 'badge-open', closed: 'badge-closed', error: 'badge-error' };
+  return `<span class="badge ${map[s] || 'badge-closed'}">${s}</span>`;
+}
+
+function renderHistory(items) {
+  const body = document.getElementById('hist-body');
+  if (!items.length) { body.innerHTML = '<tr><td colspan="14" style="text-align:center;color:var(--muted);padding:20px">No trades found</td></tr>'; return; }
+  body.innerHTML = items.map(t => `
+    <tr>
+      <td>${t.id}</td>
+      <td>${new Date(t.opened_at).toLocaleString()}</td>
+      <td>${t.connector_long}</td>
+      <td>${t.connector_short}</td>
+      <td><b>${t.token}</b></td>
+      <td>${fmt(t.position_size, 4)}</td>
+      <td>${t.entry_price_long ? '$'+fmt(t.entry_price_long,2) : '—'}</td>
+      <td>${t.entry_price_short ? '$'+fmt(t.entry_price_short,2) : '—'}</td>
+      <td>${t.exit_price_long ? '$'+fmt(t.exit_price_long,2) : '—'}</td>
+      <td>${t.exit_price_short ? '$'+fmt(t.exit_price_short,2) : '—'}</td>
+      <td>${t.net_funding != null ? fmtPct(t.net_funding) : '—'}</td>
+      <td class="${t.realized_pnl != null ? colorClass(t.realized_pnl) : ''}">${t.realized_pnl != null ? '$'+fmt(t.realized_pnl,4) : '—'}</td>
+      <td>${statusBadge(t.status)}</td>
+      <td>${t.status === 'open' ? `<button class="btn-red" style="padding:4px 10px;font-size:12px" onclick="quickClose(${t.id})">Close</button>` : ''}</td>
+    </tr>
+  `).join('');
+}
+
+async function quickClose(tradeId) {
+  if (!confirm(`Close trade #${tradeId}?`)) return;
+  try {
+    const res = await fetch(API + '/api/v1/trades/close', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trade_id: tradeId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+    toast(`✓ Trade #${data.id} closed | PnL=${fmt(data.realized_pnl,4)}`, 'ok');
+    loadHistory(histOffset);
+  } catch(e) {
+    toast('Close failed: ' + e.message, 'err');
+  }
+}
+
+// ─────────────────────────────── Init ────────────────────────────────────
+initChart();
+loadMeta();
+</script>
+</body>
+</html>

@@ -10,3 +10,11 @@
 /src/__pycache__/
 /model_version
 /bentoml/
+# Arbitrage app
+arbitrage/**/__pycache__/
+arbitrage/**/*.pyc
+arbitrage/**/.pytest_cache/
+arbitrage/backend/.env
+__pycache__/
+*.pyc
+.pytest_cache/
